@@ -1,0 +1,21 @@
+# Dependencies
+/node_modules
+package-lock.json
+
+# WhatsApp session data
+/.wwebjs_cache
+/.wwebjs_auth
+/whatsapp-session
+/auth_info
+
+# Sensitive configuration files
+service-account-key.json
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
