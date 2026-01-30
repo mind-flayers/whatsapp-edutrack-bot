@@ -34,7 +34,8 @@ const sessionSync = new FirestoreSessionSync();
 const app = express();
 app.use(bodyParser.json());
 
-const PORT = process.env.PORT || 3000;
+// Use BOT_PORT for internal communication, not Render's PORT
+const PORT = process.env.BOT_PORT || 3000;
 
 // Global state
 let sock = null;

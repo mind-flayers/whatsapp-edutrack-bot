@@ -12,8 +12,9 @@ let bridgeProcess = null;
 function startBot() {
     console.log('🤖 Starting WhatsApp Bot (server-baileys.js)...');
 
+    // Set BOT_PORT for internal communication (bot uses 3000, health server uses Render's PORT)
     botProcess = spawn('node', ['server-baileys.js'], {
-        env: { ...process.env },
+        env: { ...process.env, BOT_PORT: '3000' },
         stdio: 'pipe'
     });
 
@@ -41,8 +42,9 @@ function startBridge() {
     setTimeout(() => {
         console.log('🌉 Starting Firebase Bridge (firebase-bridge.js)...');
 
+        // Set BOT_PORT so bridge knows where to connect
         bridgeProcess = spawn('node', ['firebase-bridge.js'], {
-            env: { ...process.env },
+            env: { ...process.env, BOT_PORT: '3000' },
             stdio: 'pipe'
         });
 

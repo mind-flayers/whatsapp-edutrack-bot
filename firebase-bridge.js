@@ -23,7 +23,9 @@ if (!admin.apps.length) {
 // Get Firestore instance
 const db = admin.firestore();
 
-const WHATSAPP_BOT_URL = 'http://localhost:3000'; // Your WhatsApp bot server
+// Configuration - use BOT_PORT env var for internal communication
+const BOT_PORT = process.env.BOT_PORT || 3000;
+const WHATSAPP_BOT_URL = `http://localhost:${BOT_PORT}`;
 const BATCH_SIZE = 10;
 const RETRY_DELAY = 5000; // 5 seconds
 const MAX_RETRIES = 3;
