@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 const pino = require('pino');
 const qrcode = require('qrcode-terminal');
 const admin = require('firebase-admin');
-const FirebaseStorageSync = require('./firebase-storage-sync');
+const FirestoreSessionSync = require('./firestore-session-sync');
 
 // Initialize Firebase Admin (if not already initialized)
 if (!admin.apps.length) {
@@ -18,17 +18,17 @@ if (!admin.apps.length) {
     }
 
     admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || 'edutrack-73a2e.appspot.com'
+      credential: admin.credential.cert(serviceAccount)
+      // Note: No storageBucket needed! We're using Firestore
     });
-    console.log('✅ Firebase Admin initialized for storage sync');
+    console.log('✅ Firebase Admin initialized for Firestore');
   } catch (error) {
     console.error('⚠️ Firebase Admin init warning:', error.message);
   }
 }
 
-// Initialize storage sync
-const storageSync = new FirebaseStorageSync(process.env.FIREBASE_STORAGE_BUCKET || 'edutrack-73a2e.appspot.com');
+// Initialize Firestore session sync
+const sessionSync = new FirestoreSessionSync();
 
 // Express app setup
 const app = express();
@@ -50,11 +50,11 @@ console.log('📱 Waiting for WhatsApp connection...');
 // Initialize WhatsApp connection
 async function connectToWhatsApp() {
   try {
-    // Download session from Firebase Storage on startup
-    const hasRemoteSession = await storageSync.hasRemoteSession();
+    // Download session from Firestore on startup
+    const hasRemoteSession = await sessionSync.hasRemoteSession();
     if (hasRemoteSession) {
-      console.log('📥 Downloading session from Firebase Storage...');
-      await storageSync.downloadAuthInfo();
+      console.log('📥 Downloading session from Firestore...');
+      await sessionSync.downloadAuthInfo();
     } else {
       console.log('ℹ️ No remote session found, will create new one');
     }
@@ -66,21 +66,25 @@ async function connectToWhatsApp() {
     // Multi-file auth state
     const { state, saveCreds } = await useMultiFileAuthState('auth_info');
 
-    // Create socket
+    // Create socket with browser configuration
     sock = makeWASocket({
       version,
       auth: state,
       logger,
       defaultQueryTimeoutMs: undefined,
+      printQRInTerminal: false, // We handle QR display ourselves
+      browser: ['EduTrack Bot', 'Chrome', '110.0.0'],
+      connectTimeoutMs: 60000, // 60 second timeout
+      markOnlineOnConnect: false,
     });
 
     // Save credentials on update AND upload to Firebase Storage
     sock.ev.on('creds.update', async () => {
       await saveCreds();
 
-      // Upload to Firebase Storage after credentials update
-      console.log('💾 Syncing session to Firebase Storage...');
-      await storageSync.uploadAuthInfo();
+      // Upload to Firestore after credentials update
+      console.log('💾 Syncing session to Firestore...');
+      await sessionSync.uploadAuthInfo();
     });
 
     // Connection updates
@@ -97,23 +101,28 @@ async function connectToWhatsApp() {
 
       // Connection status
       if (connection === 'close') {
-        const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-
-        console.log('❌ Connection closed');
-
-        if (lastDisconnect?.error) {
-          console.log('Error:', lastDisconnect.error.message);
-        }
-
         isConnected = false;
+        
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const errorMessage = lastDisconnect?.error?.message || 'Unknown error';
+        
+        console.log('❌ Connection closed');
+        console.log('🔍 Status Code:', statusCode);
+        console.log('🔍 Error Message:', errorMessage);
+        
+        // Check if it's a logout or a connection error
+        const isLogout = statusCode === DisconnectReason.loggedOut;
+        const shouldReconnect = !isLogout;
 
-        if (shouldReconnect) {
-          console.log('🔄 Reconnecting...');
-          setTimeout(() => connectToWhatsApp(), 3000);
-        } else {
+        if (isLogout) {
           console.log('🚪 Logged out - clearing remote session');
-          await storageSync.clearRemoteSession();
+          await sessionSync.clearRemoteSession();
           qrCode = null;
+        } else {
+          // Connection failure - attempt to reconnect
+          console.log('🔄 Connection lost, reconnecting in 5 seconds...');
+          console.log('💡 Possible causes: Network issue, WhatsApp server issue, or auth expired');
+          setTimeout(() => connectToWhatsApp(), 5000);
         }
       } else if (connection === 'open') {
         isConnected = true;
@@ -122,8 +131,8 @@ async function connectToWhatsApp() {
         console.log('🎯 Bot is ready to send messages');
 
         // Upload session immediately after successful connection
-        console.log('💾 Backing up session to Firebase Storage...');
-        await storageSync.uploadAuthInfo();
+        console.log('💾 Backing up session to Firestore...');
+        await sessionSync.uploadAuthInfo();
       } else if (connection === 'connecting') {
         console.log('⏳ Connecting to WhatsApp...');
       }
@@ -144,11 +153,12 @@ async function connectToWhatsApp() {
     });
 
   } catch (error) {
-    console.error('❌ Connection error:', error.message);
+    console.error('❌ Connection setup error:', error.message);
+    console.error('🔍 Error stack:', error.stack);
 
     // Retry connection after 10 seconds
     setTimeout(() => {
-      console.log('🔄 Retrying connection...');
+      console.log('🔄 Retrying connection setup...');
       connectToWhatsApp();
     }, 10000);
   }

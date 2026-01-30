@@ -9,12 +9,15 @@
     "test": "node test-connection.js",
     "dev": "node start.js"
   },
+  "engines": {
+    "node": "18.x"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "EduTrack WhatsApp notification bot with Firebase integration",
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.21",
+    "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.1",

@@ -1,3 +1,28 @@
+const admin = require('firebase-admin');
+const axios = require('axios');
+
+// Initialize Firebase Admin (if not already initialized)
+if (!admin.apps.length) {
+  try {
+    let serviceAccount;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } else {
+      serviceAccount = require('./service-account-key.json');
+    }
+
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+    console.log('✅ Firebase Admin initialized for bridge');
+  } catch (error) {
+    console.error('⚠️ Firebase Admin init warning:', error.message);
+  }
+}
+
+// Get Firestore instance
+const db = admin.firestore();
+
 const WHATSAPP_BOT_URL = 'http://localhost:3000'; // Your WhatsApp bot server
 const BATCH_SIZE = 10;
 const RETRY_DELAY = 5000; // 5 seconds
