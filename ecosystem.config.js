@@ -104,7 +104,7 @@ module.exports = {
       user: 'ubuntu',
       host: 'YOUR_ORACLE_CLOUD_IP',
       ref: 'origin/main',
-      repo: 'https://github.com/mind-flayers/edu-track.git',
+      repo: 'https://github.com/mishafhasan/edu-track.git',
       path: '/home/ubuntu/edu-track',
       'post-deploy': 'cd whatsapp-edutrack-bot && npm install && pm2 reload ecosystem.config.js --env production',
       'pre-setup': ''
